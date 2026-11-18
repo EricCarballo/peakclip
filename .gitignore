@@ -1,0 +1,38 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+src/peakclip.egg-info/
+
+# Node
+node_modules/
+frontend/node_modules/
+
+# Build outputs
+ui/
+build/
+dist/
+release/
+release-social/
+release-studio/
+release-portable/
+*.zip
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
+
+# Local / secrets
+work/
+.env
+*.oauth*.json
+client_secret*.json
+credentials*.json
+
+# One-shot helpers
+scripts/_restructure.py

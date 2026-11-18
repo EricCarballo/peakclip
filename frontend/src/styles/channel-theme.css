@@ -1,0 +1,14 @@
+/* Channel tint stays present but quieter than a marketing wash. */
+main{--channel-rgb:15,118,110;isolation:isolate}
+.ambient{z-index:-1;opacity:1}
+.source-panel,form,.results{
+  background:linear-gradient(165deg,rgba(var(--channel-rgb),.07),transparent 42%),var(--panel);
+  border-color:color-mix(in srgb,rgb(var(--channel-rgb)) 28%,var(--line));
+}
+.channel-top{border-color:rgba(var(--channel-rgb),.22)}
+.local-folder{margin:-8px 0 18px;font-size:12px;color:var(--accent);background:transparent;border-color:var(--line);padding:8px 12px}
+.destination-warning{font-size:13px;line-height:1.5;color:var(--accent);padding:12px;border:1px solid var(--line);border-radius:8px}
+.saved-path{font-size:11px;line-height:1.5;color:var(--muted);overflow-wrap:anywhere;margin-top:10px}
+@media(prefers-color-scheme:dark){
+  .source-panel,form,.results{background:linear-gradient(165deg,rgba(var(--channel-rgb),.1),transparent 45%),var(--panel)}
+}

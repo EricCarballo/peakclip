@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "peakclip"
+version = "1.0.0"
+description = "Clips verticales listos para redes desde los picos del chat de Twitch y Kick"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "pywebview>=5.0",
+  "Pillow>=10.0",
+  "google-api-python-client>=2.0",
+  "google-auth-oauthlib>=1.0",
+  "google-auth-httplib2>=0.2",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
