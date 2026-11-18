@@ -15,38 +15,46 @@
   <img src="https://img.shields.io/badge/Fuentes-Twitch%20%7C%20Kick-14b8a6" alt="Twitch Kick">
 </p>
 
-Peak Clip analiza el chat de un directo, encuentra los momentos con más reacción y genera clips verticales **1080×1920** con textos listos para copiar.
+## Descargar e instalar
 
-![Interfaz de Peak Clip](docs/screenshots/peak-clip-inicio.png)
+No hace falta instalar Python, Node ni herramientas extra.
 
-## Estructura
+1. Abre la [última release](https://github.com/EricCarballo/peakclip/releases/latest)
+2. Descarga **`Peak-Clip-portable-windows.zip`**
+3. Descomprime la carpeta donde quieras (por ejemplo el Escritorio)
+4. Entra a `Peak Clip` y abre **`Peak Clip.exe`**
 
-```text
-src/peakclip/          # aplicación Python (dominio, plataformas, infra, social)
-frontend/              # interfaz React + Vite
-tests/                 # pruebas unitarias
-scripts/               # build / portable
-packaging/             # PyInstaller
-assets/                # iconos
-docs/                  # capturas y docs
-```
-
-Capas (SOLID):
-- **domain/** — análisis de chat y progreso
-- **platforms/** — adaptadores Twitch / Kick
-- **infrastructure/** — storage, rutas, herramientas
-- **social/** — borradores y YouTube
-- **api.py / app.py** — fachada pywebview y ventana
-
-## Descarga (recomendado)
-
-1. [Releases](https://github.com/EricCarballo/peakclip/releases/latest)
-2. Descarga `Peak-Clip-portable-windows.zip`
-3. Descomprime y abre `Peak Clip.exe`
+Importante: deja juntas las carpetas `_internal` y `tools` junto al `.exe`. No borres ni muevas solo el ejecutable.
 
 La carpeta `tools` ya incluye `ffmpeg`, `yt-dlp` y `TwitchDownloaderCLI`.
 
-## Desarrollo
+## Cómo usarlo
+
+1. Pega el enlace de un canal o VOD de **Twitch** o **Kick**
+2. Elige una grabación **ya terminada** (en Kick, los que siguen en vivo no sirven)
+3. Elige carpeta de destino y ajusta cantidad / sensibilidad si quieres
+4. Pulsa generar clips
+5. Cuando termine, abre la carpeta de salida: ahí están los MP4 verticales **1080×1920** y los textos para copiar a redes
+
+Consejos rápidos:
+
+- En Kick, si un directo sigue en vivo, espera a que termine y vuelve a cargar el canal
+- Si Windows bloquea el `.exe` la primera vez, usa “Más información” → “Ejecutar de todos modos”
+- No cierres la app mientras descarga el chat o corta los clips; si se interrumpe, puedes reanudar
+
+![Interfaz de Peak Clip](docs/screenshots/peak-clip-inicio.png)
+
+---
+
+## Para desarrolladores
+
+```text
+src/peakclip/   # aplicación Python
+frontend/       # React + Vite
+tests/          # pruebas
+scripts/        # build portable
+packaging/      # PyInstaller
+```
 
 ```bash
 npm --prefix frontend install
