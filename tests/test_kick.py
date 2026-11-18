@@ -10,7 +10,13 @@ SAMPLE_CHANNEL={
     'livestream':None,'chatroom':{'id':668},
 }
 SAMPLE_VIDEO_LIST=[{
-    'id':1,'channel_id':668,'session_title':'Test stream','duration':120000,
+    'id':1,'channel_id':668,'session_title':'Live now','duration':0,'is_live':True,
+    'start_time':'2026-11-14 22:41:47','source':'https://example.com/live.m3u8',
+    'views':9,'slug':'live-slug',
+    'thumbnail':{'src':'https://example.com/t.webp'},
+    'video':{'uuid':'aaaaaaaa-9aaa-4e7a-b88e-22b50c6194b0','views':9},
+},{
+    'id':2,'channel_id':668,'session_title':'Test stream','duration':120000,'is_live':False,
     'start_time':'2026-11-14 22:41:47','source':'https://example.com/master.m3u8',
     'views':9,'slug':'test-slug',
     'thumbnail':{'src':'https://example.com/t.webp'},
@@ -27,9 +33,30 @@ class KickLinks(unittest.TestCase):
         data=kick.inspect('https://kick.com/xqc')
         self.assertEqual(data['platform'],'kick')
         self.assertEqual(data['channel']['login'],'xqc')
+        # Live entries are skipped so clipping always gets finished VODs.
+        self.assertEqual(len(data['videos']),1)
         self.assertEqual(data['videos'][0]['id'],'371f0495-9aaa-4e7a-b88e-22b50c6194b0')
         self.assertEqual(data['videos'][0]['lengthSeconds'],120)
         self.assertTrue(data['videos'][0]['source'])
+        self.assertFalse(data['videos'][0].get('is_live'))
+    def test_estimate_duration_for_live_window(self):
+        start='2026-11-14T22:41:47+00:00'
+        item={'duration':0,'is_live':True,'start_time':start,'video':{'uuid':'bbbbbbbb-9aaa-4e7a-b88e-22b50c6194b0'}}
+        video=kick.normalize_video(item,'xqc')
+        self.assertTrue(video['is_live'])
+        self.assertGreater(video['lengthSeconds'],0)
+    @patch('peakclip.platforms.kick.get_json')
+    def test_inspect_rejects_live_video_link(self,get_json):
+        get_json.return_value={
+            'source':'https://example.com/master.m3u8','views':1,'uuid':'cccccccc-9aaa-4e7a-b88e-22b50c6194b0',
+            'livestream':{
+                'is_live':True,'duration':0,'session_title':'Live','channel_id':668,
+                'start_time':'2026-11-14 22:41:47','source':'https://example.com/master.m3u8',
+                'channel':{'id':668,'slug':'xqc','user':{'username':'xQc','bio':'','profilepic':''},'followers_count':1},
+            },
+        }
+        with self.assertRaisesRegex(ValueError,'sigue en vivo'):
+            kick.inspect('https://kick.com/xqc/videos/cccccccc-9aaa-4e7a-b88e-22b50c6194b0')
     @patch('peakclip.platforms.kick.time.sleep',return_value=None)
     @patch('peakclip.platforms.kick.get_json')
     def test_download_chat_window(self,get_json,sleep):

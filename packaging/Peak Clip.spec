@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import collect_data_files
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 from pathlib import Path
 
 root = Path(SPECPATH).resolve().parent
@@ -11,7 +11,7 @@ a = Analysis(
     pathex=[str(root / 'src')],
     binaries=[],
     datas=datas,
-    hiddenimports=['peakclip'],
+    hiddenimports=collect_submodules('peakclip'),
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

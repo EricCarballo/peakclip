@@ -53,6 +53,7 @@ class API:
                         'start_time':video.get('start_time') or video.get('createdAt') or '',
                         'duration':video.get('lengthSeconds') or 0,
                         'url':video.get('url') or '',
+                        'is_live':bool(video.get('is_live')),
                     }
             return {'ok':True,**result}
         except ValueError as e: return {'ok':False,'error':str(e)}
@@ -113,6 +114,12 @@ class API:
             if mode not in ('stream','custom'): raise ValueError('Elige cómo nombrar la carpeta del directo.')
             if mode=='custom' and not str(options.get('folder_name') or '').strip():
                 raise ValueError('Escribe un nombre para la carpeta dentro del canal, o usa el título del directo.')
+            if platform=='kick' and vod in self.metadata:
+                meta=self.metadata.get(vod) or {}
+                if meta.get('is_live'):
+                    raise ValueError('Ese directo de Kick sigue en vivo. Espera a que termine para crear clips.')
+                if int(meta.get('duration') or 0)<60:
+                    raise ValueError('Elige un directo de Kick ya terminado. Los que siguen en vivo no sirven para clips.')
         except (ValueError,KeyError,TypeError) as e:
             self.update(message=str(e)); return False
         with self.lock:
@@ -192,8 +199,14 @@ class API:
                     'start_time':video.get('start_time') or video.get('createdAt') or '',
                     'duration':video.get('lengthSeconds') or 0,
                     'url':video.get('url') or '',
+                    'is_live':bool(video.get('is_live')),
                 }
             platform=metadata.get('platform') or platform
+            if platform=='kick':
+                if metadata.get('is_live'):
+                    raise RuntimeError('Ese directo de Kick sigue en vivo. Espera a que termine para crear clips.')
+                if int(metadata.get('duration') or 0)<60:
+                    raise RuntimeError('Elige un directo de Kick ya terminado. Los que siguen en vivo no sirven para clips.')
             label=(o.get('folder_name') or '').strip() if o.get('folder_mode')=='custom' else ''
             output=prepare_output(o['folder'],vod,metadata['channel'],metadata['title'],folder_label=label,platform=platform)
             self.output=output
