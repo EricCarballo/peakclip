@@ -7,7 +7,7 @@ import webview
 
 import peakclip.api as api_module
 from peakclip.api import API
-from peakclip.infrastructure.paths import ui_index
+from peakclip.infrastructure.paths import bundle_root, ui_index
 from peakclip.infrastructure.tools import ensure_tools_on_path
 
 
@@ -20,7 +20,7 @@ def run():
         raise SystemExit(f"No está la interfaz compilada en {index}. Ejecuta: npm run build")
     window = webview.create_window(
         "Peak Clip",
-        str(index),
+        index.as_uri(),
         js_api=api,
         width=1180,
         height=820,
@@ -36,7 +36,7 @@ def run():
             pass
 
     window.events.shown += maximize_on_ready
-    icon = Path(__file__).resolve().parents[2] / "assets" / "peak-clip.ico"
+    icon = bundle_root() / "assets" / "peak-clip.ico"
     webview.start(icon=str(icon) if icon.is_file() else None)
 
 
