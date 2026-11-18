@@ -108,14 +108,30 @@ def duration_seconds(value):
     # Kick VOD/livestream duration fields are milliseconds.
     return n/1000
 
+def estimate_duration(item,start):
+    """Fallback when Kick reports 0 (common for live or unfinished VODs)."""
+    length=int(duration_seconds(item.get('duration') or (item.get('video') or {}).get('duration') or 0))
+    if length>0: return length
+    if not start: return 0
+    end=parse_start(item.get('updated_at') or item.get('ended_at') or '')
+    if end and end>start:
+        return max(0,int((end-start).total_seconds()))
+    # Live/unfinished: use elapsed time so chat replay still has a window.
+    if item.get('is_live'):
+        now=datetime.now(timezone.utc)
+        if start.tzinfo is None: start=start.replace(tzinfo=timezone.utc)
+        return max(0,int((now-start).total_seconds()))
+    return 0
+
 def normalize_video(item,channel_slug):
     video=item.get('video') or {}
     uuid=(video.get('uuid') or item.get('uuid') or '').lower()
     if not uuid: return None
     start=parse_start(item.get('start_time') or item.get('created_at'))
-    length=int(duration_seconds(item.get('duration') or video.get('duration') or 0))
+    length=estimate_duration(item,start)
     thumb=(item.get('thumbnail') or {})
     preview=thumb.get('src') if isinstance(thumb,dict) else thumb
+    is_live=bool(item.get('is_live'))
     return {
         'id':uuid,
         'title':item.get('session_title') or item.get('title') or 'Directo de Kick',
@@ -128,6 +144,7 @@ def normalize_video(item,channel_slug):
         'start_time':start.isoformat() if start else '',
         'slug':item.get('slug') or '',
         'channel_slug':channel_slug,
+        'is_live':is_live,
         'url':f'https://kick.com/{channel_slug}/videos/{uuid}',
     }
 
@@ -174,6 +191,8 @@ def inspect(value):
         channel_raw=live.get('channel') or {}
         if not channel_raw.get('slug'):
             raise ValueError('Esta grabación de Kick no existe o ya no está disponible.')
+        if live.get('is_live'):
+            raise ValueError('Ese directo de Kick sigue en vivo. Espera a que termine para crear clips.')
         # Merge livestream fields for normalize_video.
         item={
             **live,
@@ -182,13 +201,17 @@ def inspect(value):
             'session_title':live.get('session_title') or 'Directo de Kick',
             'duration':live.get('duration') or meta.get('duration'),
             'start_time':live.get('start_time') or live.get('created_at') or meta.get('created_at'),
+            'updated_at':meta.get('updated_at') or live.get('updated_at'),
             'channel_id':live.get('channel_id') or channel_raw.get('id'),
             'thumbnail':live.get('thumbnail') or {},
             'views':meta.get('views'),
+            'is_live':bool(live.get('is_live')),
         }
         channel=channel_payload(channel_raw if channel_raw.get('user') else get_json('https://kick.com/api/v2/channels/'+channel_raw.get('slug')))
         video=normalize_video(item,channel['login'])
         if not video: raise ValueError('Esta grabación de Kick no existe o ya no está disponible.')
+        if int(video.get('lengthSeconds') or 0)<60:
+            raise ValueError('Esta grabación de Kick aún no tiene duración usable. Elige un directo ya terminado.')
         return {'channel':channel,'videos':[video],'kind':'video','platform':'kick'}
     raw=get_json('https://kick.com/api/v2/channels/'+identifier)
     if not raw or not raw.get('slug'): raise ValueError('No encontramos ese canal de Kick. Revisa el enlace.')
@@ -196,8 +219,12 @@ def inspect(value):
     listing=get_json('https://kick.com/api/v2/channels/'+identifier+'/videos')
     videos=[]
     for item in (listing if isinstance(listing,list) else []):
+        # Live entries appear in /videos with duration 0 and break chat clipping.
+        if item.get('is_live'): continue
         video=normalize_video(item,channel['login'])
-        if video: videos.append(video)
+        if not video: continue
+        if int(video.get('lengthSeconds') or 0)<60: continue
+        videos.append(video)
         if len(videos)>=8: break
     return {'channel':channel,'videos':videos,'kind':'channel','platform':'kick'}
 
