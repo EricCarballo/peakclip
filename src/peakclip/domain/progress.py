@@ -3,6 +3,9 @@ import re
 
 def telemetry(line,stage,duration=0):
     result={}
+    if stage=='transcribe' and line.startswith('CAPTION_PROGRESS='):
+        try: result['stage_progress']=max(0,min(100,float(line.split('=',1)[1])))
+        except ValueError: pass
     if stage=='download':
         match=re.search(r'(?:PEAK_DOWNLOAD:|\[download\]\s*)(\d+(?:\.\d+)?)%',line)
         if match: result['stage_progress']=min(100,float(match[1]))

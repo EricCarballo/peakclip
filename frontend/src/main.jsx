@@ -11,13 +11,15 @@ import './styles/social.css';
 import {Results} from './components/Results.jsx';
 import {Profile} from './components/Profile.jsx';
 import {History} from './components/History.jsx';
+import {SubtitleSettings,defaultCaptions} from './components/SubtitleSettings.jsx';
+import './styles/captions.css';
 
 const call=(method,...args)=>window.pywebview?.api[method](...args);
 
 function App(){
   const [form,setForm]=useState({
     url:'',folder:'',count:10,minimum:3,before:20,after:15,cut:true,
-    folder_mode:'stream',folder_name:'',cleanup_temps:true
+    folder_mode:'stream',folder_name:'',cleanup_temps:true,captions:false,caption_settings:{...defaultCaptions}
   });
   const [state,setState]=useState({busy:false,message:'Pega un enlace para comenzar.',clips:[],logs:[]});
   const [connected,setConnected]=useState(false);
@@ -192,6 +194,10 @@ function App(){
                 <small>Quita el chat descargado y la carpeta auxiliar. Los clips y sus textos se quedan.</small>
               </label>
 
+              {form.cut&&<div className="caption-form-option">
+                <label className="check"><input type="checkbox" checked={form.captions} onChange={e=>field('captions',e.target.checked)}/>Añadir subtítulos<small>Transcripción local. La primera vez se descarga el modelo de voz.</small></label>
+                {form.captions&&<><SubtitleSettings compact value={form.caption_settings} onChange={v=>field('caption_settings',v)}/><p className="footnote">Se exporta una versión subtitulada. Después puedes corregir el texto y cambiar el estilo en cada clip.</p></>}
+              </div>}
               <button className="primary" disabled={!selected?.url} type="submit">
                 {state.busy?'Procesando…':form.cut?'Crear clips':'Analizar chat'}
                 <ArrowRight size={20}/>

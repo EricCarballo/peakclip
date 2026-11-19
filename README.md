@@ -33,8 +33,19 @@ La carpeta `tools` ya incluye `ffmpeg`, `yt-dlp` y `TwitchDownloaderCLI`.
 1. Pega el enlace de un canal o VOD de **Twitch** o **Kick**
 2. Elige una grabación **ya terminada** (en Kick, los que siguen en vivo no sirven)
 3. Elige carpeta de destino y ajusta cantidad / sensibilidad si quieres
-4. Pulsa generar clips
-5. Cuando termine, abre la carpeta de salida: ahí están los MP4 verticales **1080×1920** y los textos para copiar a redes
+4. (Opcional) Activa **Añadir subtítulos** y elige una plantilla: En foco, Impacto, Editorial o Contraste
+5. Pulsa generar clips
+6. Cuando termine, abre la carpeta de salida: ahí están los MP4 verticales **1080×1920** y los textos para copiar a redes
+
+### Subtítulos
+
+- También puedes abrir **Añadir subtítulos / Editar subtítulos** en cualquier clip terminado (o del historial)
+- Transcribe en tu equipo (sin coste de API). La primera vez descarga el modelo de voz; luego funciona sin conexión
+- Corrige frases y tiempos, cambia tamaño/color/posición/animación y usa **Renderizar muestra** (hasta 8 s) para ver el acabado real
+- **Exportar subtitulado** crea un MP4 nuevo y conserva el original; también genera SRT y ASS
+- Guardar texto no actualiza un MP4 anterior: vuelve a exportar para aplicar correcciones
+- Las correcciones viven junto al clip y sobreviven a **Borrar chat y temporales**
+- **Ver clip**, mostrar en carpeta y publicar usan la última versión subtitulada si existe
 
 Consejos rápidos:
 
@@ -47,6 +58,8 @@ Consejos rápidos:
 ---
 
 ## Para desarrolladores
+
+La estructura y contratos de subtítulos están en [Arquitectura](docs/architecture.md).
 
 ```text
 src/peakclip/   # aplicación Python

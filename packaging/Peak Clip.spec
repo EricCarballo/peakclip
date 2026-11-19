@@ -1,15 +1,17 @@
 # -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules, collect_dynamic_libs
 from pathlib import Path
 
 root = Path(SPECPATH).resolve().parent
 datas = [(str(root / 'ui'), 'ui'), (str(root / 'assets'), 'assets')]
 datas += collect_data_files('googleapiclient')
+datas += collect_data_files('faster_whisper')
+datas += collect_data_files('certifi')
 
 a = Analysis(
     [str(root / 'src' / 'peakclip' / '__main__.py')],
     pathex=[str(root / 'src')],
-    binaries=[],
+    binaries=collect_dynamic_libs('ctranslate2') + collect_dynamic_libs('onnxruntime'),
     datas=datas,
     hiddenimports=collect_submodules('peakclip'),
     hookspath=[],

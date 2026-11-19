@@ -28,6 +28,7 @@ def run():
     )
     api_module.window = window
     window.events.closing += lambda: api.cancel()
+    window.events.closed += lambda: api._media.close()
 
     def maximize_on_ready():
         try:

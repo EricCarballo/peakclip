@@ -119,7 +119,7 @@ def cleanup_workspace(output):
     return {'ok':True,'removed':removed,'bytes':freed,'already_clean':removed==0}
 
 def _clip_public(item):
-    keep=('number','time','end','duration','strength','url','ready','path','filename','created_at','size_bytes','video_title','channel','platform','thumbnail_file')
+    keep=('number','time','end','duration','strength','url','ready','path','filename','created_at','size_bytes','video_title','channel','platform','thumbnail_file','caption_path')
     return {key:item[key] for key in keep if key in item and item[key] is not None}
 
 def save_session(output,clips,meta=None):
@@ -177,6 +177,7 @@ def _thumb_data(path):
 def _discover_clips(folder):
     clips=[]
     for path in sorted(folder.glob('clip*.mp4')):
+        if '_subtitulos_' in path.stem: continue
         if not path.is_file(): continue
         social_path=path.with_suffix('.social.json')
         social_data=None

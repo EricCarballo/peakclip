@@ -18,6 +18,7 @@ release/
 release-social/
 release-studio/
 release-portable/
+release-subtitles/
 *.zip
 
 # IDE / OS

@@ -2,8 +2,9 @@ import React,{useEffect,useState} from 'react';
 import {motion,AnimatePresence,useReducedMotion} from 'motion/react';
 import {FolderOpen,Play,ArrowSquareOut,CheckCircle,Waveform,Clock,FilmStrip,Scissors,Check,WarningCircle,Trash,ArrowClockwise} from '@phosphor-icons/react';
 import {ShareEditor} from './ShareEditor.jsx';
+import {SubtitleEditor} from './SubtitleEditor.jsx';
 const call=(method,...args)=>window.pywebview?.api[method](...args);
-const stages={prepare:'Preparación',chat:'Descargando chat',analyze:'Analizando reacciones',download:'Descargando fragmento',encode:'Creando vídeo vertical',thumbnail:'Preparando miniatura',saved:'Clip guardado',done:'Proceso completado',error:'Necesita atención',cancelled:'Proceso pausado'};
+const stages={transcribe:'Transcribiendo voz',caption_render:'Renderizando subtítulos',prepare:'Preparación',chat:'Descargando chat',analyze:'Analizando reacciones',download:'Descargando fragmento',encode:'Creando vídeo vertical',thumbnail:'Preparando miniatura',saved:'Clip guardado',done:'Proceso completado',error:'Necesita atención',cancelled:'Proceso pausado'};
 function elapsed(seconds){const s=Math.max(0,Math.floor(seconds));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
 function Activity({state}){
  const [now,setNow]=useState(Date.now());const reduced=useReducedMotion();
@@ -23,6 +24,7 @@ function Activity({state}){
 }
 export function Results({state,connected}){
  const [sharing,setSharing]=useState(null);
+ const [editing,setEditing]=useState(null);
  const [cleaning,setCleaning]=useState(false);
  const ready=state.clips.filter(c=>c.ready).length;
  const canClean=connected&&!state.busy&&state.temps_available&&state.output_folder&&!state.output_error;
@@ -39,11 +41,12 @@ export function Results({state,connected}){
  {!state.clips.length&&!state.busy?<div className="empty"><Waveform size={64} weight="thin"/><h3>Todavía no hay clips.</h3><p>Elige un directo, ajusta la sensibilidad<br/>y crea los momentos del chat.</p></div>:<div className="clip-gallery">
  {state.clips.map((c,i)=><motion.section className="clip-card" key={c.filename||c.number} initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{duration:.35}}>
  <button className="clip-preview" disabled={!c.ready} onClick={()=>call('play',i)} aria-label={'Reproducir clip '+c.number}>{c.thumbnail?<img src={c.thumbnail} alt={'Fotograma del clip '+c.number}/>:<div className="preview-placeholder"><FilmStrip size={38}/><span>{c.ready?'Vista previa no disponible':'Momento detectado'}</span></div>}{c.ready&&<span className="preview-play"><Play size={22} weight="fill"/></span>}<span className="preview-duration">{c.duration||'—'} s</span><span className="preview-format">9:16</span></button>
- <div className="clip-body"><div className="clip-title-row"><h3>Clip {String(c.number).padStart(2,'0')}</h3><span className={'clip-state '+(c.ready?'ready':'')}>{c.ready?<><CheckCircle size={13} weight="fill"/>Guardado</>:'Analizado'}</span></div><p className="clip-time">{c.time}<span>→</span>{c.end}</p><div className="clip-stats"><span><Waveform size={15}/>{c.strength}× actividad</span>{c.size_bytes&&<span>{(c.size_bytes/1048576).toFixed(1)} MB</span>}</div>{c.created_at&&<p className="clip-date">Creado {new Date(c.created_at).toLocaleString('es',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'})}</p>}<div className="clip-actions">{c.ready&&<button onClick={()=>call('play',i)} className="play-action"><Play size={15} weight="fill"/>Ver clip</button>}<button onClick={()=>call('twitch',i)}><ArrowSquareOut size={15}/>{c.platform==='kick'?'Kick':'Twitch'}</button>{c.ready&&<button title="Mostrar archivo en su carpeta" aria-label={'Mostrar archivo del clip '+c.number} onClick={()=>call('reveal',i)}><FolderOpen size={16}/></button>}</div>{c.ready&&<button className="share-button" onClick={()=>setSharing(i)}>Copiar textos / compartir</button>}</div>
+ <div className="clip-body"><div className="clip-title-row"><h3>Clip {String(c.number).padStart(2,'0')}</h3><span className={'clip-state '+(c.ready?'ready':'')}>{c.ready?<><CheckCircle size={13} weight="fill"/>Guardado</>:'Analizado'}</span></div><p className="clip-time">{c.time}<span>→</span>{c.end}</p><div className="clip-stats"><span><Waveform size={15}/>{c.strength}× actividad</span>{c.size_bytes&&<span>{(c.size_bytes/1048576).toFixed(1)} MB</span>}</div>{c.created_at&&<p className="clip-date">Creado {new Date(c.created_at).toLocaleString('es',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'})}</p>}<div className="clip-actions">{c.ready&&<button onClick={()=>call('play',i)} className="play-action"><Play size={15} weight="fill"/>Ver clip</button>}<button onClick={()=>call('twitch',i)}><ArrowSquareOut size={15}/>{c.platform==='kick'?'Kick':'Twitch'}</button>{c.ready&&<button title="Mostrar archivo en su carpeta" aria-label={'Mostrar archivo del clip '+c.number} onClick={()=>call('reveal',i)}><FolderOpen size={16}/></button>}</div>{c.ready&&<button className="caption-launch" disabled={state.busy} onClick={()=>setEditing(i)}>{c.caption_path?'Editar subtítulos':'Añadir subtítulos'}</button>}{c.ready&&<button disabled={state.busy} className="share-button" onClick={()=>setSharing(i)}>Copiar textos / compartir</button>}</div>
  </motion.section>)}
  {state.busy&&<div className="pending-clip"><div className="pending-lines"><i/><i/><i/><i/><i/></div><strong>{state.current?`Preparando clip ${state.current}`:'Escuchando al chat'}</strong><span>{stages[state.stage]}</span></div>}
  </div>}
  {!!state.logs?.length&&<details className="diagnostic-log" open={state.stage==='error'}><summary>Registro completo para diagnóstico</summary><pre>{state.logs.join('\n')}</pre></details>}
  {sharing!==null&&state.clips[sharing]&&<ShareEditor index={sharing} clip={state.clips[sharing]} status={state.social_status} onClose={()=>setSharing(null)}/>}
+ {editing!==null&&state.clips[editing]&&<SubtitleEditor index={editing} clip={state.clips[editing]} state={state} onClose={()=>setEditing(null)}/>}
  </section>;
 }
