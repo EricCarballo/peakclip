@@ -56,6 +56,13 @@ class DesktopActions:
 
         webbrowser.open(self.jobs.status()["clips"][int(index)]["url"])
 
+    def open_url(self, url):
+        import webbrowser
+
+        if url:
+            webbrowser.open(str(url))
+        return True
+
     def reveal(self, index):
         clip = self.jobs.status()["clips"][int(index)]
         path = clip_media_path(clip)

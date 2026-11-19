@@ -22,6 +22,8 @@ class ClipJobs:
     def __init__(self, pipeline=None, video_processor=None):
         self.lock = threading.Lock()
         self.cancelled = threading.Event()
+        self.peaks_choice = threading.Event()
+        self.selected_peak_ids = None
         self.process = None
         self.state = {
             "busy": False,
@@ -47,6 +49,10 @@ class ClipJobs:
             eta="",
             started_at=None,
             resumable=False,
+            awaiting_peaks=False,
+            peaks_preview=[],
+            chat_heatmap=[],
+            rate_limited=False,
         )
         self.job = None
         self.pipeline = pipeline or ClipPipeline()
@@ -99,10 +105,12 @@ class ClipJobs:
 
     def cancel(self):
         self.cancelled.set()
+        self.peaks_choice.set()
         self.update(
             message="Cancelando subtítulos…"
             if self.state.get("caption_job")
-            else "Pausando. Guardamos el progreso para poder reanudar."
+            else "Pausando. Guardamos el progreso para poder reanudar.",
+            rate_limited=False,
         )
         if self.process and self.process.poll() is None:
             subprocess.run(
@@ -110,6 +118,28 @@ class ClipJobs:
                 creationflags=subprocess.CREATE_NO_WINDOW,
                 capture_output=True,
             )
+
+    def confirm_peaks(self, ids):
+        """Resume clipping after the user reviews detected moments."""
+        if not self.state.get("awaiting_peaks"):
+            return {"ok": False, "error": "No hay momentos pendientes de confirmar."}
+        try:
+            chosen = sorted({int(value) for value in (ids or [])})
+        except (TypeError, ValueError):
+            return {"ok": False, "error": "La selección de momentos no es válida."}
+        if not chosen:
+            return {"ok": False, "error": "Elige al menos un momento para continuar."}
+        self.selected_peak_ids = chosen
+        with self.lock:
+            self.state["busy"] = True
+            self.state["awaiting_peaks"] = False
+        self.update(
+            message="Continuando con los momentos elegidos…",
+            stage="download",
+            started_at=time.time(),
+        )
+        self.peaks_choice.set()
+        return {"ok": True}
 
     def phase(self, stage, message, **values):
         with self.lock:
@@ -230,6 +260,8 @@ class ClipJobs:
                 return False
             self.state["busy"] = True
         self.cancelled.clear()
+        self.peaks_choice.clear()
+        self.selected_peak_ids = None
         self.job = {
             "platform": platform,
             "vod": vod,
@@ -244,6 +276,10 @@ class ClipJobs:
             output_folder=None,
             temps_available=False,
             resumable=False,
+            awaiting_peaks=False,
+            peaks_preview=[],
+            chat_heatmap=[],
+            rate_limited=False,
             stage="prepare",
             stage_progress=None,
             current=0,

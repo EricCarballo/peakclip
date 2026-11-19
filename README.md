@@ -33,25 +33,31 @@ La carpeta `tools` ya incluye `ffmpeg`, `yt-dlp` y `TwitchDownloaderCLI`.
 1. Pega el enlace de un canal o VOD de **Twitch** o **Kick**
 2. Elige una grabación **ya terminada** (en Kick, los que siguen en vivo no sirven)
 3. Elige carpeta de destino y ajusta cantidad / sensibilidad si quieres
-4. (Opcional) Activa **Añadir subtítulos** y elige una plantilla: En foco, Impacto, Editorial o Contraste
-5. Pulsa generar clips
-6. Cuando termine, abre la carpeta de salida: ahí están los MP4 verticales **1080×1920** y los textos para copiar a redes
+4. (Recomendado) Deja **Añadir subtítulos automáticamente** activo y elige plantilla
+5. Pulsa generar clips; revisa el **mapa del chat** y confirma los momentos
+6. Cuando termine, abre la carpeta de salida: MP4 verticales **1080×1920** y textos listos para redes
 
-### Subtítulos
+### Pestañas y temas
 
-- También puedes abrir **Añadir subtítulos / Editar subtítulos** en cualquier clip terminado (o del historial)
-- Transcribe en tu equipo (sin coste de API). La primera vez descarga el modelo de voz; luego funciona sin conexión
-- Corrige frases y tiempos, cambia tamaño/color/posición/animación y usa **Renderizar muestra** (hasta 8 s) para ver el acabado real
-- **Exportar subtitulado** crea un MP4 nuevo y conserva el original; también genera SRT y ASS
-- Guardar texto no actualiza un MP4 anterior: vuelve a exportar para aplicar correcciones
-- Las correcciones viven junto al clip y sobreviven a **Borrar chat y temporales**
-- **Ver clip**, mostrar en carpeta y publicar usan la última versión subtitulada si existe
+- Puedes abrir hasta **3 pestañas** para descargar/crear clips de distintos directos a la vez
+- Cambia el tema (claro / oscuro / sistema) desde el encabezado
+- Si hay una release nueva en GitHub, Peak Clip te avisa al abrir
+
+### Subtítulos y textos
+
+- Los títulos/descripciones se enriquecen con la **voz transcrita** del clip cuando hay subtítulos
+- También puedes abrir **Añadir / Editar subtítulos** en cualquier clip del historial
+- **Guardar como favorito** recuerda tu estilo de subtítulos
+- **Renderizar muestra** muestra hasta 8 s con el acabado real
+- El original se conserva; la exportación crea MP4 + SRT/ASS
+- **Ver clip** / Explorador / publicar usan la versión subtitulada si existe
 
 Consejos rápidos:
 
 - En Kick, si un directo sigue en vivo, espera a que termine y vuelve a cargar el canal
+- Si Kick limita peticiones (429), verás un aviso; la descarga se frena sola y reintenta
 - Si Windows bloquea el `.exe` la primera vez, usa “Más información” → “Ejecutar de todos modos”
-- No cierres la app mientras descarga el chat o corta los clips; si se interrumpe, puedes reanudar
+- Usa el acceso directo **Peak Clip** del Escritorio (apunta al portable más reciente tras cada build)
 
 ![Interfaz de Peak Clip](docs/screenshots/peak-clip-inicio.png)
 

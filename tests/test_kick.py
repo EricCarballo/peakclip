@@ -6,7 +6,7 @@ from peakclip.platforms import kick
 
 SAMPLE_CHANNEL={
     'id':668,'slug':'xqc','followers_count':10,
-    'user':{'username':'xQc','bio':'bio','profilepic':''},
+    'user':{'username':'xQc','bio':'bio','profile_pic':'','profilepic':''},
     'livestream':None,'chatroom':{'id':668},
 }
 SAMPLE_VIDEO_LIST=[{
@@ -27,6 +27,11 @@ class KickLinks(unittest.TestCase):
     def test_parse(self):
         self.assertEqual(kick.parse_link('kick.com/Xqc'),('channel','xqc'))
         self.assertEqual(kick.parse_link('https://kick.com/xqc/videos/371f0495-9aaa-4e7a-b88e-22b50c6194b0'),('video','371f0495-9aaa-4e7a-b88e-22b50c6194b0'))
+    def test_profile_image_prefers_profile_pic(self):
+        self.assertEqual(
+            kick.profile_image_url({'profile_pic':'https://files.kick.com/a.webp','profilepic':'old'}),
+            'https://files.kick.com/a.webp',
+        )
     @patch('peakclip.platforms.kick.get_json')
     def test_inspect_channel(self,get_json):
         get_json.side_effect=[SAMPLE_CHANNEL,SAMPLE_VIDEO_LIST]
@@ -57,10 +62,18 @@ class KickLinks(unittest.TestCase):
         }
         with self.assertRaisesRegex(ValueError,'sigue en vivo'):
             kick.inspect('https://kick.com/xqc/videos/cccccccc-9aaa-4e7a-b88e-22b50c6194b0')
+    def test_chat_coverage_and_eta(self):
+        start=kick.parse_start('2026-11-14T22:00:00+00:00')
+        end=kick.parse_start('2026-11-14T23:00:00+00:00')
+        mid=kick.parse_start('2026-11-14T22:30:00+00:00')
+        self.assertAlmostEqual(kick.chat_coverage(mid,start,end),0.5)
+        self.assertEqual(kick.format_eta(45),'45s')
+        self.assertEqual(kick.format_eta(125),'2:05')
     @patch('peakclip.platforms.kick.time.sleep',return_value=None)
-    @patch('peakclip.platforms.kick.get_json')
-    def test_download_chat_window(self,get_json,sleep):
-        get_json.side_effect=[
+    @patch('peakclip.platforms.kick.KickSession')
+    def test_download_chat_window(self,Session,sleep):
+        session=Session.return_value.__enter__.return_value
+        session.get_json.side_effect=[
             {'data':{'messages':[
                 {'id':'1','content':'hola','created_at':'2026-11-14T22:42:10Z'},
                 {'id':'2','content':'antes','created_at':'2026-11-14T22:40:00Z'},
@@ -68,19 +81,28 @@ class KickLinks(unittest.TestCase):
         ]
         with tempfile.TemporaryDirectory() as tmp:
             dest=Path(tmp)/'chat.json'
-            count=kick.download_chat(668,'2026-11-14T22:41:47+00:00',120,dest)
+            notes=[]
+            def progress(count,pages,note=None,percent=None,eta=None,speed=None):
+                notes.append({'count':count,'percent':percent,'eta':eta,'speed':speed})
+            count=kick.download_chat(668,'2026-11-14T22:41:47+00:00',120,dest,progress=progress)
             self.assertEqual(count,1)
             text=dest.read_text(encoding='utf-8')
             self.assertIn('hola',text)
             self.assertNotIn('antes',text)
-            cursor=get_json.call_args.args[0]
-            self.assertIn('cursor=',cursor)
+            path=session.get_json.call_args.args[0]
+            self.assertIn('cursor=',path)
             # Cursor seeding uses epoch microseconds for Kick replay.
-            self.assertGreater(len(cursor.split('cursor=')[1]),12)
+            self.assertGreater(len(path.split('cursor=')[1]),12)
+            # No throttle until Kick rate-limits.
+            sleep.assert_not_called()
+            self.assertTrue(notes)
+            self.assertEqual(notes[-1]['percent'],100)
+            self.assertEqual(notes[-1]['eta'],'0s')
     @patch('peakclip.platforms.kick.time.sleep',return_value=None)
-    @patch('peakclip.platforms.kick.get_json')
-    def test_download_chat_resumes_from_checkpoint(self,get_json,sleep):
-        get_json.side_effect=[
+    @patch('peakclip.platforms.kick.KickSession')
+    def test_download_chat_resumes_from_checkpoint(self,Session,sleep):
+        session=Session.return_value.__enter__.return_value
+        session.get_json.side_effect=[
             {'data':{'messages':[
                 {'id':'3','content':'despues','created_at':'2026-11-14T22:42:20Z'},
                 {'id':'2','content':'antes','created_at':'2026-11-14T22:40:00Z'},

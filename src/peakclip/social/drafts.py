@@ -38,28 +38,66 @@ def join_tags(*groups,limit=500):
         seen.append(tag)
     return ' '.join(seen)
 
-def suggest(title,channel,messages,start,end,platform_source='twitch'):
+def transcript_lines(cues,start,end):
+    """Flatten caption cues overlapping the clip window into (offset, text) pairs."""
+    lines=[]
+    for cue in cues or []:
+        try:
+            cue_start=float(cue.get('start') or 0)
+            cue_end=float(cue.get('end') or cue_start)
+            text=str(cue.get('text') or '').strip()
+        except (TypeError,ValueError):
+            continue
+        if not text: continue
+        if cue_end<start or cue_start>end: continue
+        lines.append((max(start,cue_start),text))
+    return lines
+
+def suggest(title,channel,messages,start,end,platform_source='twitch',transcript=None):
     nearby=[text for t,text in messages if start<=t<=end]
-    # Repeated copy-paste messages count once to reduce spam influence.
-    words=Counter(
+    spoken=[text for _,text in transcript_lines(transcript,0,max(end-start,0)+1)] if transcript is not None else []
+    # Prefer spoken words for titles when transcription exists; chat still adds reaction topics.
+    spoken_words=Counter(
+        w for text in spoken
+        for w in re.findall(r'[\wáéíóúñ]{3,}',re.sub(r'https?://\S+','',text.lower()))
+        if w not in STOP and not w.isdigit()
+    )
+    chat_words=Counter(
         w for text in set(nearby)
         for w in re.findall(r'[\wáéíóúñ]{4,}',re.sub(r'https?://\S+','',text.lower()))
         if w not in STOP and not w.isdigit()
     )
-    chat_topics=[w for w,count in words.most_common(10) if count>=2][:5]
+    voice_topics=[w for w,_ in spoken_words.most_common(8)][:5]
+    chat_topics=[w for w,count in chat_words.most_common(10) if count>=2][:5]
     title=re.sub(r'https?://\S+','',title).strip() or 'Un momento del directo'
-    topics=list(dict.fromkeys(chat_topics+title_topics(title)))[:6]
-    base=f'{channel}: {title}'
-    description=f'Un momento del directo «{title}» de {channel}.'
+    topics=list(dict.fromkeys(voice_topics+chat_topics+title_topics(title)))[:6]
+    quote=''
+    if spoken:
+        quote=max(spoken,key=len)
+        quote=re.sub(r'\s+',' ',quote).strip()
+        if len(quote)>90: quote=quote[:87].rstrip()+'…'
+    base=f'{channel}: {quote}' if quote else f'{channel}: {title}'
+    if quote:
+        description=f'«{quote}» — momento del directo de {channel}.'
+        if title and title.lower() not in quote.lower():
+            description+=f' Directo: {title}.'
+    else:
+        description=f'Un momento del directo «{title}» de {channel}.'
     if chat_topics: description+=' El chat reaccionó hablando de '+', '.join(chat_topics[:3])+'.'
+    if voice_topics and not quote: description+=' Se habla de '+', '.join(voice_topics[:3])+'.'
     source_tags=['#Kick','#KickClips','#ClipsDeKick'] if platform_source=='kick' else ['#Twitch','#TwitchClips','#ClipsDeTwitch']
     core=[t for t in [hashtag(channel)]+source_tags+[hashtag(w) for w in topics] if t]
     result={}
     for platform in PLATFORMS:
-        heading=base if platform=='youtube' else (
-            f'El chat reacciona: {title}' if platform=='tiktok'
-            else f'Un momento con {channel}: {title}'
-        )
+        if quote:
+            heading=base if platform=='youtube' else (
+                quote if platform=='tiktok' else f'{channel}: {quote}'
+            )
+        else:
+            heading=base if platform=='youtube' else (
+                f'El chat reacciona: {title}' if platform=='tiktok'
+                else f'Un momento con {channel}: {title}'
+            )
         prompt=' ¿Qué opinas de este momento?' if platform in ('instagram','facebook') else ''
         extra=list(BOOST[platform])
         if platform_source=='kick' and platform=='tiktok': extra=['#kick','#kickclips']+extra
@@ -69,12 +107,17 @@ def suggest(title,channel,messages,start,end,platform_source='twitch'):
             'description':(description+prompt)[:4500],
             'hashtags':join_tags(*(core+extra)),
         }
+    note='Sugerencias locales'
+    if spoken: note+=' a partir de la voz del clip'
+    note+=' con hashtags de alcance. Revísalas: no garantizan viralidad.'
     return {
         'platforms':result,
         'basis':{
             'messages':len(nearby),
+            'transcript_lines':len(spoken),
             'topics':topics,
-            'note':'Sugerencias locales con hashtags de alcance. Revísalas: no ven el vídeo ni garantizan viralidad.',
+            'quote':quote,
+            'note':note,
         },
     }
 

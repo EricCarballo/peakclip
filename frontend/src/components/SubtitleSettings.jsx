@@ -1,13 +1,20 @@
 import React, {useEffect, useState} from 'react';
 import {call} from '../lib/bridge';
+import {saveCaptionSettings} from '../lib/prefs';
 
 export const defaultCaptions = {template:'focus', size:76, color:'#F8D34F', position:'lower', motion:true};
 
 export function SubtitleSettings({value, onChange, compact=false}) {
   const [templates,setTemplates]=useState([]);
   const [error,setError]=useState('');
+  const [savedNote,setSavedNote]=useState('');
   useEffect(()=>{let alive=true;call('caption_catalog').then(t=>{if(alive)setTemplates(t)}).catch(()=>{if(alive)setError('No se pudieron cargar las plantillas.')});return()=>{alive=false}},[]);
   const change=(key,v)=>onChange({...value,[key]:v});
+  function remember(){
+    saveCaptionSettings(value);
+    setSavedNote('Estilo guardado para próximas sesiones.');
+    setTimeout(()=>setSavedNote(''),2500);
+  }
   return <div className={'subtitle-settings '+(compact?'compact-settings':'')}>
     <div className="caption-section-title"><strong>Estilo del subtítulo</strong><span>Muestras de estilo</span></div>
     {error&&<p role="alert">{error}</p>}
@@ -25,5 +32,9 @@ export function SubtitleSettings({value, onChange, compact=false}) {
       <div className="caption-position" role="radiogroup" aria-label="Posición de subtítulos">{[['upper','Arriba'],['middle','Centro'],['lower','Abajo']].map(([v,n])=><button type="button" key={v} role="radio" aria-checked={value.position===v} onClick={()=>change('position',v)}>{n}</button>)}</div>
       <label className="caption-motion"><input type="checkbox" checked={value.motion} onChange={e=>change('motion',e.target.checked)}/> Animación y palabra activa</label>
     </>}
+    <div className="caption-fav-row">
+      <button type="button" className="caption-fav" onClick={remember}>Guardar como favorito</button>
+      {savedNote&&<small>{savedNote}</small>}
+    </div>
   </div>;
 }

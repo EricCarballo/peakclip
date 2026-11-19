@@ -30,6 +30,12 @@ class Drafts(unittest.TestCase):
     def test_spam_not_counted_as_topic(self):
         data=social.suggest('Directo','canal',[(1,'spamtest')]*20,0,2)
         self.assertNotIn('spamtest',data['basis']['topics'])
+    def test_titles_prefer_transcript_quote(self):
+        cues=[{'start':0.2,'end':2.5,'text':'no puedo creer esta jugada'},{'start':3,'end':4,'text':'vamos'}]
+        data=social.suggest('GTA RP','lonche',[(1,'clip clip')],0,8,platform_source='kick',transcript=cues)
+        self.assertIn('jugada',data['platforms']['tiktok']['title'].lower())
+        self.assertGreaterEqual(data['basis']['transcript_lines'],1)
+        self.assertIn('voz',data['basis']['note'])
     def test_edits_saved_independently(self):
         data=social.suggest('Directo','canal',[],0,2)
         data['platforms']['youtube']['title']='Mi título'

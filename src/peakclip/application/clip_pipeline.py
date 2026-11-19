@@ -148,13 +148,31 @@ class ClipPipeline:
                 )
                 if platform == "kick":
 
-                    def chat_progress(count, pages, note=None):
-                        if note:
-                            jobs.update(message=note)
-                        else:
-                            jobs.update(
-                                message=f"Descargando chat de Kick… {count:,} mensajes ({pages} páginas)"
+                    def chat_progress(
+                        count, pages, note=None, percent=None, eta=None, speed=None
+                    ):
+                        payload = {"rate_limited": False}
+                        if percent is not None:
+                            payload["stage_progress"] = max(
+                                0, min(100, float(percent))
                             )
+                        if eta is not None:
+                            payload["eta"] = eta
+                        if speed is not None:
+                            payload["speed"] = speed
+                        if note:
+                            payload["message"] = note
+                            if "limitando" in note.lower() or "respiro" in note.lower():
+                                payload["rate_limited"] = True
+                        elif percent is not None:
+                            payload["message"] = (
+                                f"Descargando chat… {count:,} mensajes · {percent:.0f}%"
+                            )
+                        else:
+                            payload["message"] = (
+                                f"Descargando chat… {count:,} mensajes ({pages} páginas)"
+                            )
+                        jobs.update(**payload)
 
                     kick.download_chat(
                         metadata.get("channel_id"),
@@ -174,6 +192,13 @@ class ClipPipeline:
                             vod,
                             "-o",
                             str(chat),
+                            # Skip third-party emote catalogs; peak analysis only needs text.
+                            "--bttv",
+                            "false",
+                            "--ffz",
+                            "false",
+                            "--stv",
+                            "false",
                         ],
                         stage="chat",
                     )
@@ -195,20 +220,84 @@ class ClipPipeline:
             messages, _ = engine.leer_chat(chat)
             if not messages:
                 raise RuntimeError("El chat está vacío. Prueba otro directo.")
+            counts = engine.contar(messages, 10)
             peaks = saved.get("peaks") if resume and saved.get("peaks") else None
             if not peaks:
                 peaks = engine.buscar_picos(
-                    engine.contar(messages, 10),
+                    counts,
                     10,
                     int(o["count"]),
                     90,
                     float(o["minimum"]),
                 )
-            jobs.update(total=len(peaks))
+            peak = max(counts) if counts else 1
+            heatmap = [round(min(1.0, value / peak), 3) for value in counts]
+            preview = []
+            for n, (strength, bucket, _, __) in enumerate(peaks, 1):
+                moment = bucket * 10
+                preview.append(
+                    {
+                        "id": n,
+                        "bucket": bucket,
+                        "seconds": moment,
+                        "time": engine.hms(max(0, moment - int(o["before"]))),
+                        "end": engine.hms(moment + 10 + int(o["after"])),
+                        "strength": round(strength, 1),
+                        "selected": True,
+                    }
+                )
+            jobs.update(
+                total=len(peaks),
+                chat_heatmap=heatmap,
+                peaks_preview=preview,
+                rate_limited=False,
+            )
             if peaks:
                 jobs.phase(
                     "analyze",
                     f"{len(peaks)} momentos encontrados en {len(messages):,} mensajes.",
+                )
+            review = o.get("review_peaks", True) and o.get("cut") and peaks
+            if review and not (resume and saved.get("peaks")):
+                jobs.peaks_choice.clear()
+                jobs.selected_peak_ids = None
+                jobs.update(
+                    awaiting_peaks=True,
+                    busy=False,
+                    stage="peaks",
+                    message="Revisa el mapa del chat, elige momentos y pulsa Continuar.",
+                    stage_progress=None,
+                    speed="",
+                    eta="",
+                )
+                while not jobs.peaks_choice.wait(timeout=0.4):
+                    if jobs.cancelled.is_set():
+                        raise RuntimeError(
+                            "Proceso cancelado. Los clips terminados se conservaron."
+                        )
+                if jobs.cancelled.is_set():
+                    raise RuntimeError(
+                        "Proceso cancelado. Los clips terminados se conservaron."
+                    )
+                chosen = jobs.selected_peak_ids or [item["id"] for item in preview]
+                peaks = [
+                    peaks[index - 1]
+                    for index in chosen
+                    if 1 <= index <= len(peaks)
+                ]
+                if not peaks:
+                    raise RuntimeError("No quedó ningún momento seleccionado.")
+                preview = [
+                    item
+                    for item in preview
+                    if item["id"] in set(chosen)
+                ]
+                jobs.update(
+                    peaks_preview=preview,
+                    total=len(peaks),
+                    awaiting_peaks=False,
+                    busy=True,
+                    message=f"Creando {len(peaks)} clips seleccionados…",
                 )
             jobs._write_job(
                 output,
@@ -356,6 +445,19 @@ class ClipPipeline:
                             jobs.phase,
                         )
                         if document["cues"]:
+                            item["social"] = social.suggest(
+                                metadata["title"],
+                                metadata["channel"],
+                                messages,
+                                start,
+                                end,
+                                platform_source=platform,
+                                transcript=document.get("cues"),
+                            )
+                            try:
+                                social.save(dest, item["social"])
+                            except OSError:
+                                pass
                             jobs.phase(
                                 "caption_render", f"Añadiendo subtítulos al clip {n}."
                             )

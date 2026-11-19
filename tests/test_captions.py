@@ -146,7 +146,7 @@ class Captions(unittest.TestCase):
         from peakclip.api import API
 
         api = API()
-        api._jobs.update(busy=True)
+        api._tab().jobs.update(busy=True)
         self.assertFalse(api.caption_transcribe(0)["ok"])
 
     def test_native_viewer_prefers_subtitled_file(self):
